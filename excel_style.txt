@@ -1,0 +1,8 @@
+
+a1.alignment =   Alignment(  horizontal    = 'center', # 좌우 정렬 left, right, center, distributed
+                             vertical      = 'center', # 위아래 정렬 top, bottom, center, distributed
+                             shrink_to_fit = True,     # 셀의 크기에 맞게 글자를 축소
+                             indent        = 0         # 들여쓰기
+                           )
+
+

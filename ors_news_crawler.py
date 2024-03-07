@@ -10,14 +10,10 @@ from openpyxl.styles import Font
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.styles import Alignment, PatternFill, Font, Border, Side
+import openpyxl.utils.cell
 import time
 import os
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-< naver 뉴스 검색시 리스트 크롤링하는 프로그램 > _select사용
-- 크롤링 해오는 것 : 링크,제목,신문사,날짜,내용요약본
-- 날짜,내용요약본  -> 정제 작업 필요
-- 리스트 -> 딕셔너리 -> df -> 엑셀로 저장 
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
 
 
 def makedir(dir):
@@ -73,14 +69,17 @@ def contents_cleansing(contents):
 
 
 
-def crawler(maxpage, query, sort, s_date, e_date):
+def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     # 각 크롤링 결과 저장하기 위한 리스트 선언
-    Page       = []
-    News_dates = []
-    Press_name = []
-    Title = []
-    Link = []
-    Contents = []
+    Crawl_date   = []
+    News_keyword = []
+    News_dates   = []
+    Press_name   = []
+    Title        = []
+    Link         = []
+    Contents     = []
+    Page         = []
+
     result = {}
 
     s_from = re.sub(r'[^0-9]', '', s_date)
@@ -128,12 +127,14 @@ def crawler(maxpage, query, sort, s_date, e_date):
                 news_date = str(news_date)
                 news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
 
-            Page.append(page)
-            News_dates.append(news_date)
-            Press_name.append(press_name)
-            Title.append(title)
-            Link.append(link)
+            Crawl_date.append(today_str)                            # 수집일자
+            News_keyword.append(news_keyword)                       # 검색어
+            News_dates.append(re.sub(r'[^0-9]', '', news_date))     # 기사일자
+            Press_name.append(press_name)                           # 언론사
+            Title.append(title)                                     # 기사제목
+            Link.append(link)                                       # 기사URL
             Contents.append(contents_cleansing(contents))
+            Page.append(page)
 
         print(page)
         page += 10
@@ -141,60 +142,76 @@ def crawler(maxpage, query, sort, s_date, e_date):
 
     #모든 리스트 딕셔너리형태로 저장
     result= {
-             "PAGE"      : Page,
-             "기사일자"  : News_dates ,
-             "언론사"    : Press_name ,
-             "기사제목"  : Title ,
-             "기사링크"  : Link ,
-             "본문요약"  : Contents
+             "수집일자"  : Crawl_date,       #A
+             "검색어"    : News_keyword,     #B
+             "기사일자"  : News_dates ,      #C
+             "언론사"    : Press_name ,      #D
+             "기사제목"  : Title ,           #E
+             "기사링크"  : Link ,            #F
+             "본문요약"  : Contents,         #G
+             "페이지"    : Page              #H
              }
 
     df = pd.DataFrame(result)  # df로 변환
     # 새로 만들 파일이름 지정
-    outputFileName = 'RESULT_%04d%02d%02d_%02d%02d%02d_%s.xlsx' % (now.year, now.month, now.day, now.hour, now.minute, now.second,query)
+    resultFileName = 'RESULT_%04d%02d%02d_%02d%02d%02d_%s.xlsx' % (now.year, now.month, now.day, now.hour, now.minute, now.second,news_keyword)
+
     df.to_excel(
-                 RESULT_PATH + outputFileName
-               , sheet_name=query
-               , index=False
-               , freeze_panes=(1,0)  # 틀고정
+                 RESULT_PATH + resultFileName
+               , sheet_name  = query
+               , index       = False
+               , freeze_panes= (1,0)  # 틀고정
                )
 
-    wb = load_workbook(RESULT_PATH + outputFileName)
+
+
+    # 엑셀 스타일
+    wb = load_workbook(RESULT_PATH + resultFileName)
     ws = wb.active
 
-    # 음영 색 지정
-    ligthGrayFill = PatternFill(start_color='00C0C0C0',
-                                end_color  ='00C0C0C0',
-                                fill_type  ='solid')
+    ws.column_dimensions["A"].width = 10.25    # 수집일자
+    ws.column_dimensions["B"].width = 10.25    # 검색어
+    ws.column_dimensions["C"].width = 10.25    # 기사일자
+    ws.column_dimensions["D"].width = 15       # 언론사
+    ws.column_dimensions["E"].width = 50       # 기사제목
+    ws.column_dimensions["F"].width = 50       # 기사링크
+    ws.column_dimensions["G"].width = 100      # 본문요약
+    ws.column_dimensions["H"].width = 8        # 페이지
 
-    ws['A1'].fill = ligthGrayFill
-    ws['B1'].fill = ligthGrayFill
-    ws['C1'].fill = ligthGrayFill
-    ws['D1'].fill = ligthGrayFill
-    ws['E1'].fill = ligthGrayFill
-    ws['F1'].fill = ligthGrayFill
+    # 폰트 정의
+    font_header  = Font(name="맑은 고딕", size=9, bold=True)
+    font_content = Font(name="맑은 고딕", size=9, bold=False)
 
-    ws.column_dimensions["A"].width = 8    # PAGE
-    ws.column_dimensions["B"].width = 10.25
-    ws.column_dimensions["C"].width = 20
-    ws.column_dimensions["D"].width = 50
-    ws.column_dimensions["E"].width = 50
-    ws.column_dimensions["F"].width = 200
+    cell_alignment_center = Alignment(horizontal    = 'center',  # 좌우 정렬 left, right, center, distributed
+                                      vertical      = 'center',  # 위아래 정렬 top, bottom, center, distributed
+                                      shrink_to_fit = True,      # 셀의 크기에 맞게 글자를 축소
+                                      indent        = 0          # 들여쓰기
+                              )
 
+    # CELL 음영 정의
+    ligthGrayFill = PatternFill(start_color='00C0C0C0',end_color  ='00C0C0C0',fill_type  ='solid')
 
-    # 폰트 지정
-    font_header = Font(name="맑은 고딕", size=9, bold=False)
-    for rows in ws["A1":"F500"]:
+    # 헤더CELL 스타일 적용
+    for rows in ws["A1":"H1"]:
         for cell in rows:
-            # 셀 배경색
-            #cell.fill = PatternFill(patternType="solid")
-            # 가로 위치 균등 분할
-            #cell.alignment = Alignment(horizontal="distributed")
-            # 폰트 지정
-            cell.font = font_header
+            cell.font      = font_header
+            cell.alignment = cell_alignment_center
+            cell.fill      = ligthGrayFill
+
+    # 내용CELL 스타일 적용
+    for rows in ws["A2":"H1000"]:
+        for cell in rows:
+            cell.font      = font_content
+            if cell.column_letter in ('A','C') :
+                cell.alignment = cell_alignment_center
 
 
-    wb.save(RESULT_PATH + outputFileName)
+
+
+
+
+            # 엑셀 스타일 적용 파일 저장
+    wb.save(RESULT_PATH + resultFileName)
 
 
 
@@ -216,21 +233,37 @@ def main():
     maxpage = option["C3"].value # 검색 page (1page = 기사 10건)
     sort    = option["D3"].value # 검색 옵션(정렬) 관련도순:0, 최신순:1, 오래된순:2
 
+    news_keyword   = ""          # 뉴스 검색 키워드
+    query          = ""          # 쿼리 string
+
     flag = False
-    keyword_range = option["A5":"A19"]
+    keyword_range = option["A5":"D19"]
     print(keyword_range)
     for keyword in keyword_range:
+        query = ""  # 검색어 초기화
+
         for cell in keyword:
-            if cell.value == None:
+            if cell.column_letter == "A" and cell.value == None:    # 수집포함 메인 keyword None
                 flag = True
-                break
+                break      # 수집중단
 
-            print("keyword:" + cell.value)
-            query = cell.value
-            crawler(maxpage, query, sort, s_date, e_date)
+            if cell.column_letter == "A" and cell.value != None:  # 수집포함 메인 keyword
+                news_keyword = cell.value
 
-        if flag == True:
-            break
+            # print("cell_letter:" + str(cell.column_letter))
+            # print("keyword:" + str(cell.value))
+
+            if cell.column_letter in ('A','B') and cell.value != None:
+                query += " " + "+" + str(cell.value)   # +검색어 생성
+
+            if cell.column_letter in ('C','D') and cell.value != None:
+                query += " " + "-" + str(cell.value)   # -검색어 생성
+
+        if flag:
+            break #수집 중단
+
+        print("query" + query)
+        crawler(maxpage, query, sort, s_date, e_date,news_keyword)
 main()
 
 
