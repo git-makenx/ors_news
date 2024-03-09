@@ -5,4 +5,3 @@ a1.alignment =   Alignment(  horizontal    = 'center', # 좌우 정렬 left, rig
                              indent        = 0         # 들여쓰기
                            )
 
-
