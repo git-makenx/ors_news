@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 from konlpy.tag import Okt
 from tqdm import tqdm
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import DBSCAN
+import numpy as np
+
+
 from bs4 import BeautifulSoup
 from datetime import timedelta, datetime
 import requests
@@ -172,7 +177,55 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
 
     print(noun_list)
     df["nouns"] = noun_list
-    df.head
+    print(df)
+
+    # 명사가 비어있으면 제거
+    drop_index_list = []  # 지워버릴 index를 담는 리스트
+    for i, row in df.iterrows():
+        temp_nouns = row['nouns']
+        if len(temp_nouns) == 0:  # 만약 명사리스트가 비어 있다면
+            drop_index_list.append(i)  # 지울 index 추가
+
+    df = df.drop(drop_index_list)  # 해당 index를 지우기
+
+    # index를 지우면 순회시 index 값이 중간중간 비기 때문에 index를 다시 지정
+    df.index = range(len(df))
+    print(df)
+
+    # 문서를 명사 집합으로 보고 문서 리스트로 치환 (tfidfVectorizer 인풋 형태를 맞추기 위해)
+    text = [" ".join(noun) for noun in df['nouns']]
+
+    tfidf_vectorizer = TfidfVectorizer(min_df=5, ngram_range=(1, 5))
+    tfidf_vectorizer.fit(text)
+    vector = tfidf_vectorizer.transform(text).toarray()
+
+    print(vector)
+
+    vector = np.array(vector)  # Normalizer를 이용해 변환된 벡터
+    model = DBSCAN(eps=0.3, min_samples=6, metric="cosine")
+    # 거리 계산 식으로는 Cosine distance를 이용
+    result = model.fit_predict(vector)
+
+    print(result)
+    df["result"] = result
+
+    print(df)
+
+    for cluster_num in set(result):
+        # -1,0은 노이즈 판별이 났거나 클러스터링이 안된 경우
+        if (cluster_num == -1 or cluster_num == 0):
+            continue
+        else:
+            print("cluster num : {}".format(cluster_num))
+            temp_df = df[df['result'] == cluster_num]  # cluster num 별로 조회
+            for title in temp_df['기사제목']:
+                print(title)  # 제목으로 살펴보자
+            print()
+
+
+
+
+
 
     # 새로 만들 파일이름 지정
     resultFileName = 'RESULT_%04d%02d%02d_%02d%02d%02d_%s.xlsx' % (now.year, now.month, now.day, now.hour, now.minute, now.second,news_keyword)
