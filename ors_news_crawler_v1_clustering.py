@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from konlpy.tag import Okt
-import tqdm
+from tqdm import tqdm
 from bs4 import BeautifulSoup
 from datetime import timedelta, datetime
 import requests
@@ -161,6 +161,18 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
              }
 
     df = pd.DataFrame(result)  # df로 변환
+
+    print(df['기사제목'])
+
+    okt = Okt()  # 형태소 분석기 객체 생성
+    noun_list = []
+    for content in tqdm(df['기사제목']):
+        nouns = okt.nouns(content)  # 명사만 추출하기, 결과값은 명사 리스트
+        noun_list.append(nouns)
+
+    print(noun_list)
+    df["nouns"] = noun_list
+    df.head
 
     # 새로 만들 파일이름 지정
     resultFileName = 'RESULT_%04d%02d%02d_%02d%02d%02d_%s.xlsx' % (now.year, now.month, now.day, now.hour, now.minute, now.second,news_keyword)
