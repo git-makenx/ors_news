@@ -90,9 +90,9 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
 
     while page <= maxpage_t:
         url = "https://search.naver.com/search.naver?where=news&query=" + query + "&sort="+sort+"&ds=" + s_date + "&de=" + e_date + "&nso=so%3Ar%2Cp%3Afrom" + s_from + "to" + e_to + "%2Ca%3A&start=" + str(page)
-
+        print(url)
         response = requests.get(url)
-        time.sleep(3)  # url 웹 페이지 로딩 대기 시간
+        time.sleep(1)  # url 웹 페이지 로딩 대기 시간
 
         html = response.text
 
@@ -120,6 +120,12 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
             elif "일 전" in news_date:
                 news_date_num = int(re.sub('[\D]', '', news_date))
                 news_date = str(datetime.today() - timedelta(days=news_date_num))
+                news_date = news_date[:10]
+            # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+
+            elif "주 전" in news_date:
+                news_date_num = int(re.sub('[\D]', '', news_date))
+                news_date = str(datetime.today() - timedelta(days=news_date_num * 7))
                 news_date = news_date[:10]
             # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
 
@@ -157,10 +163,10 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     resultFileName = 'RESULT_%04d%02d%02d_%02d%02d%02d_%s.xlsx' % (now.year, now.month, now.day, now.hour, now.minute, now.second,news_keyword)
 
     df.to_excel(
-                 RESULT_PATH + resultFileName
-               , sheet_name  = query
-               , index       = False
-               , freeze_panes= (1,0)  # 틀고정
+                 RESULT_PATH + resultFileName     # 파일명
+               , sheet_name  = news_keyword       # 검색어
+               , index       = False              # 인덱스
+               , freeze_panes= (1,0)              # 틀고정
                )
 
 

@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
 
-class Gmail():
+class Gmail:
     def __init__(self):
         self.gmail_smtp = "smtp.gmail.com"
         self.gmail_port = 465
@@ -14,7 +14,7 @@ class Gmail():
         print(self.smpt)
 
         self.my_id = "bnkrisk"
-        self.my_password = "ayaqddtjfuwprlih"
+        self.my_password = "ayaqddtjfuwprlih"   # wlwnfltmzm1!
         self.smpt.login(self.my_id, self.my_password)
 
     def sendmail(self, receiver="", sender="", filepath="", filename=""):
@@ -27,14 +27,15 @@ class Gmail():
         content_part = MIMEText(content, "plain")
         msg.attach(content_part)
 
-        filepath = os.getcwd() + "/" + "crawling_result/"  # 결과 저장할 경로
+        filepath = os.getcwd() + "/" + "crawling_result/"  # 첨부파일 경로
         filename = "RESULT_20240308_071450_BNK.xlsx"
 
         with open(filepath + filename, 'rb') as send_file:
             attachment = MIMEApplication(send_file.read())
             # 첨부파일의 정보를 헤더로 추가
-            attachment.add_header('Content-Disposition', 'attachment', filename=filename)
+            attachment.add_header('Content-Disposition', 'attachment', filename=filename) # 수신자 메일 표시 파일명
             msg.attach(attachment)
+
 
         to_mail = "makens@naver.com"
         self.smpt.sendmail(self.my_id, to_mail, msg.as_string())
