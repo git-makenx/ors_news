@@ -23,14 +23,13 @@ import os
 
 
 
+########################################################################################################################
 def makedir(dir):
     try:
         if not os.path.exists(dir):
             os.makedirs(dir)
     except OSError:
         print("Error: Failed to create the directory.")
-
-
 
 
 #엑셀로 저장하기 위한 변수
@@ -43,29 +42,99 @@ today_str = datetime.today().strftime("%Y%m%d")
 today_num = int(today_str)
 
 
-#날짜 정제화 함수
-def date_cleansing(test):
-    try:
-        #지난 뉴스
-        #머니투데이  10면1단  2018.11.05.  네이버뉴스   보내기
-        pattern = '\d+.(\d+).(\d+).'  #정규표현식
+# Pandas 출력 최대개수
+pd.options.display.max_rows    = 60    #None
+pd.options.display.max_columns = 30    #None
 
-        r = re.compile(pattern)
-        match = r.search(test).group(0)  # 2018.11.05.
-        return match
-
-    except AttributeError:
-        #최근 뉴스
-        #이데일리  1시간 전  네이버뉴스   보내기
-        pattern = '\w* (\d\w*)'     #정규표현식
-
-        r = re.compile(pattern)
-        match = r.search(test).group(1)
-        #print(match)
-        return match
+########################################################################################################################
 
 
-#내용 정제화 함수
+
+
+
+def cluster_cleansing(df):
+    # 불필요 기사 cleansing - 명사가 비어있으면 제거
+    drop_index_list = []  # 지워버릴 index를 담는 리스트
+    for i, row in df.iterrows():
+        temp_nouns = row['분석키워드']
+        if len(temp_nouns) == 0:  # 만약 명사리스트가 비어 있다면
+            drop_index_list.append(i)  # 지울 index 추가
+    print(f"drop_index_list: {drop_index_list}")
+    df = df.drop(drop_index_list)  # 해당 index를 지우기
+
+    # index를 지우면 순회시 index 값이 중간중간 비기 때문에 index를 다시 지정
+    df.index = range(len(df))
+    print(df)
+    return df
+
+
+# (기사제목)분석키워드 군집분석
+def cluster_analysis(df):
+
+    # 문서를 명사 집합으로 보고 문서 리스트로 치환 (tfidfVectorizer 인풋 형태를 맞추기 위해)
+    text = [" ".join(noun) for noun in df['분석키워드']]
+
+    tfidf_vectorizer = TfidfVectorizer(min_df=5, ngram_range=(1, 5))
+    tfidf_vectorizer.fit(text)
+    vector = tfidf_vectorizer.transform(text).toarray()
+
+    print(vector)
+
+    vector = np.array(vector)  # Normalizer를 이용해 변환된 벡터
+    model = DBSCAN(eps=0.3, min_samples=6, metric="cosine")
+    # 거리 계산 식으로는 Cosine distance를 이용
+    cluster_list = model.fit_predict(vector)
+
+    print(cluster_list)
+    df["군집번호"] = cluster_list
+
+    print(df)
+
+    for cluster_num in set(cluster_list):
+        # -1,0은 노이즈 판별이 났거나 클러스터링이 안된 경우
+        if (cluster_num == -1 or cluster_num == 0):
+            continue
+        else:
+            print("cluster num : {}".format(cluster_num))
+            temp_df = df[df['군집번호'] == cluster_num]  # cluster num 별로 조회
+            for title in temp_df['기사제목']:
+                print(title)
+
+    return df
+
+#기사일자 정제화
+def news_date_cleansing(news_dates):
+
+    # (A면1단, 날짜) 형태로 되어 있는 경우 처리
+    if len(news_dates) > 1:
+        news_date = news_dates[1].get_text().replace('.', '')
+    else:
+        news_date = news_dates[0].get_text().replace('.', '')
+
+    if "분" in news_date or "시간 전" in news_date:
+        news_date = str(today_num)
+        news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+
+    elif "일 전" in news_date:
+        news_date_num = int(re.sub('[\D]', '', news_date))
+        news_date = str(datetime.today() - timedelta(days=news_date_num))
+        news_date = news_date[:10]
+    # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+
+    elif "주 전" in news_date:
+        news_date_num = int(re.sub('[\D]', '', news_date))
+        news_date = str(datetime.today() - timedelta(days=news_date_num * 7))
+        news_date = news_date[:10]
+    # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+
+    else:
+        news_date = str(news_date)
+        news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+
+    return  re.sub(r'[^0-9]', '', news_date)
+
+
+#본문요약 정제화
 def contents_cleansing(contents):
     first_cleansing_contents = re.sub('<dl>.*?</a> </div> </dd> <dd>', '',
                                       str(contents)).strip()  #앞에 필요없는 부분 제거
@@ -78,14 +147,15 @@ def contents_cleansing(contents):
 
 def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     # 각 크롤링 결과 저장하기 위한 리스트 선언
-    Crawl_date   = []
-    News_keyword = []
-    News_dates   = []
-    Press_name   = []
-    Title        = []
-    Link         = []
-    Contents     = []
-    Page         = []
+    CRAWL_DATE   = []
+    NEWS_KEYWORD = []
+    NEWS_DATE    = []
+    PRESS_NAME   = []
+    TITLE        = []
+    LINK         = []
+    CONTENT      = []
+    PAGE         = []
+    NOUN_LIST    = []
 
     result = {}
 
@@ -112,42 +182,20 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
             press_name = news_result.select_one(".info.press").text
             title      = news_result.select_one(".news_tit").text
             link       = news_result.select_one(".news_tit")["href"]
-            contents   = news_result.select_one(".news_dsc").text
+            content    = news_result.select_one(".news_dsc").text
 
-            # (A면1단, 날짜) 형태로 되어 있는 경우 처리
-            if len(news_dates) > 1:
-                news_date = news_dates[1].get_text().replace('.', '')
-            else:
-                news_date = news_dates[0].get_text().replace('.', '')
+            okt = Okt()  # 형태소 분석기 객체 생성
+            nouns = okt.nouns(content)  # 명사만 추출하기, 결과값은 명사 리스트
 
-            if "분" in news_date or "시간 전" in news_date:
-                news_date = str(today_num)
-                news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
-
-            elif "일 전" in news_date:
-                news_date_num = int(re.sub('[\D]', '', news_date))
-                news_date = str(datetime.today() - timedelta(days=news_date_num))
-                news_date = news_date[:10]
-            # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
-
-            elif "주 전" in news_date:
-                news_date_num = int(re.sub('[\D]', '', news_date))
-                news_date = str(datetime.today() - timedelta(days=news_date_num * 7))
-                news_date = news_date[:10]
-            # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
-
-            else:
-                news_date = str(news_date)
-                news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
-
-            Crawl_date.append(today_str)                            # 수집일자
-            News_keyword.append(news_keyword)                       # 검색어
-            News_dates.append(re.sub(r'[^0-9]', '', news_date))     # 기사일자
-            Press_name.append(press_name)                           # 언론사
-            Title.append(title)                                     # 기사제목
-            Link.append(link)                                       # 기사URL
-            Contents.append(contents_cleansing(contents))
-            Page.append(page)
+            CRAWL_DATE.append(today_str)                           # 수집일자
+            NEWS_KEYWORD.append(news_keyword)                      # 검색어
+            NEWS_DATE.append(news_date_cleansing(news_dates))      # 기사일자
+            PRESS_NAME.append(press_name)                          # 언론사
+            TITLE.append(title)                                    # 기사제목
+            LINK.append(link)                                      # 기사URL
+            CONTENT.append(contents_cleansing(content))            # 본문요약
+            PAGE.append(page)                                      # 페이지
+            NOUN_LIST.append(nouns)                                # 분석키워드
 
         print(page)
         page += 10
@@ -155,76 +203,24 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
 
     #모든 리스트 딕셔너리형태로 저장
     result= {
-             "수집일자"  : Crawl_date,       #A
-             "검색어"    : News_keyword,     #B
-             "기사일자"  : News_dates ,      #C
-             "언론사"    : Press_name ,      #D
-             "기사제목"  : Title ,           #E
-             "기사링크"  : Link ,            #F
-             "본문요약"  : Contents,         #G
-             "페이지"    : Page              #H
+             "수집일자"      : CRAWL_DATE,       #A
+             "검색어"        : NEWS_KEYWORD,     #B
+             "기사일자"      : NEWS_DATE ,       #C
+             "언론사"        : PRESS_NAME ,      #D
+             "기사제목"      : TITLE ,           #E
+             "기사링크"      : LINK ,            #F
+             "본문요약"      : CONTENT,          #G
+             "페이지"        : PAGE,             #H
+             "분석키워드"    : NOUN_LIST         #I
              }
 
     df = pd.DataFrame(result)  # df로 변환
 
     print(df['기사제목'])
-
-    okt = Okt()  # 형태소 분석기 객체 생성
-    noun_list = []
-    for content in tqdm(df['기사제목']):
-        nouns = okt.nouns(content)  # 명사만 추출하기, 결과값은 명사 리스트
-        noun_list.append(nouns)
-
-    print(noun_list)
-    df["nouns"] = noun_list
     print(df)
 
-    # 명사가 비어있으면 제거
-    drop_index_list = []  # 지워버릴 index를 담는 리스트
-    for i, row in df.iterrows():
-        temp_nouns = row['nouns']
-        if len(temp_nouns) == 0:  # 만약 명사리스트가 비어 있다면
-            drop_index_list.append(i)  # 지울 index 추가
-
-    df = df.drop(drop_index_list)  # 해당 index를 지우기
-
-    # index를 지우면 순회시 index 값이 중간중간 비기 때문에 index를 다시 지정
-    df.index = range(len(df))
-    print(df)
-
-    # 문서를 명사 집합으로 보고 문서 리스트로 치환 (tfidfVectorizer 인풋 형태를 맞추기 위해)
-    text = [" ".join(noun) for noun in df['nouns']]
-
-    tfidf_vectorizer = TfidfVectorizer(min_df=5, ngram_range=(1, 5))
-    tfidf_vectorizer.fit(text)
-    vector = tfidf_vectorizer.transform(text).toarray()
-
-    print(vector)
-
-    vector = np.array(vector)  # Normalizer를 이용해 변환된 벡터
-    model = DBSCAN(eps=0.3, min_samples=6, metric="cosine")
-    # 거리 계산 식으로는 Cosine distance를 이용
-    result = model.fit_predict(vector)
-
-    print(result)
-    df["result"] = result
-
-    print(df)
-
-    for cluster_num in set(result):
-        # -1,0은 노이즈 판별이 났거나 클러스터링이 안된 경우
-        if (cluster_num == -1 or cluster_num == 0):
-            continue
-        else:
-            print("cluster num : {}".format(cluster_num))
-            temp_df = df[df['result'] == cluster_num]  # cluster num 별로 조회
-            for title in temp_df['기사제목']:
-                print(title)  # 제목으로 살펴보자
-            print()
-
-
-
-
+    df = cluster_cleansing(df)
+    df = cluster_analysis(df)
 
 
     # 새로 만들 파일이름 지정
