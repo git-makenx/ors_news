@@ -8,6 +8,7 @@ a = Analysis(
     datas=[   ("C:\\Python\\workspaces\\ors_news\\venv\\Lib\\site-packages\\konlpy\\"               , "./konlpy")
             , ("C:\\Python\\workspaces\\ors_news\\venv\\Lib\\site-packages\\konlpy\\java\\"         , "./konlpy/java")
             , ("C:\\Python\\workspaces\\ors_news\\venv\\Lib\\site-packages\\konlpy\\data\\tagset\\*", "./konlpy/data/tagset")
+            , ("C:\\Python\\workspaces\\ors_news\\ors_news_crawler.xlsx"                            , ".")
           ],
     hiddenimports=[],
     hookspath=[],

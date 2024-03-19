@@ -28,7 +28,7 @@ class Gmail:
         msg.attach(content_part)
 
         filepath = os.getcwd() + "/" + "crawling_result/"  # 첨부파일 경로
-        filename = "RESULT_20240308_071450_BNK.xlsx"
+        filename = "RESULT.xlsx"
 
         with open(filepath + filename, 'rb') as send_file:
             attachment = MIMEApplication(send_file.read())
