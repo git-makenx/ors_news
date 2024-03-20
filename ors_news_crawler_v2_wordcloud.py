@@ -387,8 +387,8 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     ws2.add_image(wc_image,'A1')
     col_width,row_height = wc_image.width,wc_image.height
 
-    ws2.column_dimensions["A"].width = col_width
-    ws2.row_dimensions["1"].height   = row_height
+    ws2.column_dimensions["A"].width = col_width  * 63.2   / 504.19
+    ws2.row_dimensions["1"].height   = row_height * 225.35 / 298.96
 
 
     # 엑셀 스타일 적용 파일 저장
@@ -396,7 +396,7 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     wb.close()
 
 
- 
+
 
 
 
