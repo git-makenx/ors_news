@@ -305,8 +305,8 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
 
 
     ### WORD CLOUD 시작 >> RESULT_FILENAME_CLOUD
-    masking_image = np.array(Image.open(".\\img\\mask_bnk_img.png"))
-    word_cloud = WordCloud(font_path="C:\\Windows\\Fonts\\HYWULM.TTF", # font_path="C:/Windows/Fonts/NanumSquareB.ttf"
+    masking_image = np.array(Image.open(".\\resourse\\mask_bnk_img.png"))
+    word_cloud = WordCloud(font_path=".\\resourse\\HYWULM.TTF", # font_path="C:/Windows/Fonts/NanumSquareB.ttf"
                            width=2000, height=1000,
                            mask=masking_image, # masking
                            colormap='prism', # colormap='autumn',
