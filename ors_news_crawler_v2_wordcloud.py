@@ -23,6 +23,7 @@ from openpyxl.styles import Font
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.styles import Alignment, PatternFill, Font, Border, Side
+from openpyxl.drawing.image import Image  as Image_openpyxl
 
 from collections import Counter
 
@@ -338,7 +339,7 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     wb = load_workbook(RESULT_PATH + "\\" + RESULT_FILENAME)
 
     # Sheet1(news_keyword) 스타일
-    ws = wb[news_keyword]
+    ws = wb[news_keyword]  # 검색어 시트
     ws.column_dimensions["A"].width = 10.25    # 수집일자
     ws.column_dimensions["B"].width = 10.25    # 발행일자
     ws.column_dimensions["C"].width = 10.25    # 검색어
@@ -379,11 +380,20 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
             if cell.column_letter in ('A','B','D','F','J') :  #수집일자 / 발행일자 / 언론사ID / 군집그룹 / 페이지
                 cell.alignment = cell_alignment_center        # CELL가운데 정렬
 
+    # Sheet3(news_keyword) 스타일
+    ws2 = wb.create_sheet("WORD_CLOUD")
 
+    wc_image = Image_openpyxl(RESULT_PATH + "\\" + RESULT_FILENAME_CLOUD)
+    ws2.add_image(wc_image,'A1')
+    col_width,row_height = wc_image.width,wc_image.height
+
+    ws2.column_dimensions["A"].width = col_width
+    ws2.row_dimensions["1"].height   = row_height
 
 
     # 엑셀 스타일 적용 파일 저장
     wb.save(RESULT_PATH + "\\" + RESULT_FILENAME)
+    wb.close()
 
 
 
