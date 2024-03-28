@@ -119,7 +119,7 @@ def cluster_analysis(df):
     print(vector)
 
     vector = np.array(vector)  # Normalizer를 이용해 변환된 벡터
-    model = DBSCAN(eps=0.3, min_samples=6, metric="cosine")
+    model = DBSCAN(eps=0.3, min_samples=2, metric="cosine")
     # 거리 계산 식으로는 Cosine distance를 이용
     cluster_list = model.fit_predict(vector)
 
@@ -149,13 +149,23 @@ def news_date_cleansing(news_dates):
     else:
         news_date = news_dates[0].get_text().replace('.', '')
 
-    if "분" in news_date or "시간 전" in news_date:
-        news_date = str(today_num)
-        news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+
+
+    if "분" in news_date:
+        # news_date = str(today_num)
+        # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
+        news_date_num = int(re.sub('[\D]', '', news_date))
+        news_date = str(datetime.today() - timedelta(minitues=news_date_num+1))
+        news_date = news_date[:10]
+
+    elif "시간 전" in news_date:
+        news_date_num = int(re.sub('[\D]', '', news_date))
+        news_date = str(datetime.today() - timedelta(hours=news_date_num+1))
+        news_date = news_date[:10]
 
     elif "일 전" in news_date:
         news_date_num = int(re.sub('[\D]', '', news_date))
-        news_date = str(datetime.today() - timedelta(days=news_date_num))
+        news_date = str(datetime.today() - timedelta(days=news_date_num+1))
         news_date = news_date[:10]
     # news_date = datetime.strptime(news_date, '%Y%m%d').strftime('%Y-%m-%d')
 
@@ -277,6 +287,9 @@ def crawler(maxpage, query, sort, s_date, e_date,news_keyword):
     df1 = df1.sort_values(by=["군집그룹", "발행일자", "언론사"], ascending=[False, False, True])
     #### //기사수집 메인 df 종료
 
+
+    #df1-> inplace Mode 중복제거
+    #df1.drop_duplicates(subset=["기사제목"], keep ="first", inplace = True) # inplace : 원본을 변경
 
 
     #### 수집기사 분석키워드 빈도수 집계 df_word_count 시작
