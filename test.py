@@ -25,4 +25,7 @@
 #
 # print("WORK_DIR : " + WORK_DIR )
 
-impot
+#문제12
+
+
+
